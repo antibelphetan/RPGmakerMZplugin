@@ -7,6 +7,7 @@
 ----------------------------------------------------------------------------
  Version
  1.0.0 2021/05/03
+ 1.0.1 2021/07/27 他スクリプトと100%競合するので修正
 ----------------------------------------------------------------------------
  [HP]   : http://kilisamenosekai.web.fc2.com/
  [Twitter]: https://twitter.com/mistyrain_on_tw/
@@ -74,6 +75,9 @@
  * fastTravelLocation ファストトラベルでの移動先を指定　マップID,X座標,Y座標
  * ==============================================
  */
+function Window_FastTravelList() {
+    this.initialize(...arguments);
+}
  (() => {
 
 var parameters = PluginManager.parameters('AB_FastTravelByItem');
@@ -86,16 +90,16 @@ var FASTTRAVEL_CONFIRM_MESSAGE = parameters['FastTravelConfirmMessage'];
 var FASTTRAVEL_CONFIRM_YES_NO = parameters['FastTravelConfirmYesNo'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
 
 
-var Window_MenuCommand_addMainCommands = Window_MenuCommand.prototype.addMainCommands;
+var AB_FSTRVLBYITEM_Window_MenuCommand_addMainCommands = Window_MenuCommand.prototype.addMainCommands;
 Window_MenuCommand.prototype.addMainCommands = function() {
-    Window_MenuCommand_addMainCommands.call(this);
+    AB_FSTRVLBYITEM_Window_MenuCommand_addMainCommands.call(this);
     const enabled = this.areMainCommandsEnabled();
     this.addCommand(FASTTRAVEL_COMMAND_NAME, "fastTravel", enabled);
 };
 
-var Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
+var AB_FSTRVLBYITEM_Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
 Scene_Menu.prototype.createCommandWindow = function() {
-    Scene_Menu_createCommandWindow.call(this);
+    AB_FSTRVLBYITEM_Scene_Menu_createCommandWindow.call(this);
     this._commandWindow.setHandler("fastTravel", this.commandFastTravel.bind(this));
 };
 
@@ -254,9 +258,9 @@ Scene_FastTravel.prototype.playSeForItem = function() {
     SoundManager.playUseItem();
 };
 
-var Scene_FastTravel_update = Scene_FastTravel.prototype.update;
+var AB_FSTRVLBYITEM_Scene_FastTravel_update = Scene_FastTravel.prototype.update;
 Scene_FastTravel.prototype.update = function(){
-	Scene_FastTravel_update.call(this);
+	AB_FSTRVLBYITEM_Scene_FastTravel_update.call(this);
 	if(this._itemWindow.active){
 		if(this._itemWindow.index() != this._saveIndex){
 			this._saveIndex = this._itemWindow.index();
@@ -318,10 +322,6 @@ Window_FastTravelCategory.prototype.needsSelection = function() {
 // Window_FastTravelList
 //
 // The window for selecting an fastTravel on the fastTravel screen.
-
-function Window_FastTravelList() {
-    this.initialize(...arguments);
-}
 
 Window_FastTravelList.prototype = Object.create(Window_Selectable.prototype);
 Window_FastTravelList.prototype.constructor = Window_FastTravelList;
@@ -500,20 +500,20 @@ Window_FastTravelConfirm.prototype.initialize = function(rect) {
 Window_FastTravelConfirm.prototype.update = function() {
     Window_HorzCommand.prototype.update.call(this);
 };
-var Window_FastTravelConfirm_drawAllItems = Window_FastTravelConfirm.prototype.drawAllItems;
+var AB_FSTRVLBYITEM_Window_FastTravelConfirm_drawAllItems = Window_FastTravelConfirm.prototype.drawAllItems;
 Window_FastTravelConfirm.prototype.drawAllItems = function() {
 	var rect = this.itemRect(-1);
 	this.drawTextEx(FASTTRAVEL_CONFIRM_MESSAGE, rect.x,rect.y,rect.width);	
-	Window_FastTravelConfirm_drawAllItems.call(this);
+	AB_FSTRVLBYITEM_Window_FastTravelConfirm_drawAllItems.call(this);
 };
 Window_FastTravelConfirm.prototype.makeCommandList = function() {
 	for(var i = 0 ; i< FASTTRAVEL_CONFIRM_YES_NO.length ; i++){
 		this.addCommand(FASTTRAVEL_CONFIRM_YES_NO[i], i);
 	}
 };
-var Window_FastTravelConfirm_itemRect = Window_FastTravelConfirm.prototype.itemRect;
+var AB_FSTRVLBYITEM_Window_FastTravelConfirm_itemRect = Window_FastTravelConfirm.prototype.itemRect;
 Window_FastTravelConfirm.prototype.itemRect = function(index) {
-	return Window_FastTravelConfirm_itemRect.call(this,index+1);
+	return AB_FSTRVLBYITEM_Window_FastTravelConfirm_itemRect.call(this,index+1);
 };
 
 Window_FastTravelConfirm.prototype.needsCommand = function(name) {
