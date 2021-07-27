@@ -1,4 +1,4 @@
-Copyright (c) misty_rain・AntiBelphetan
+Copyright (c) misty_rain・AntiBelphetan<br>
 Released under the MIT license
 http://opensource.org/licenses/mit-license.php
 
