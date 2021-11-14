@@ -8,6 +8,11 @@ AB_QuestSystemByItem.js
  Version
  1.0.0 2021/05/03
  1.0.1 2021/07/27 他スクリプトと100%競合するので修正
+ 1.1.0 2021/11/14 クエストワープ禁止時、画面で閲覧だけできるか、メニュー時点で禁止にするかをパラメータで指定できるように修正
+                  クエストワープ後の向きを場所毎に指定できるように修正
+                  クエストワープ確認で「はい」選んだ時の効果音を、場所毎に設定できるよう修正
+                  クエストコマンドのメニュー上の位置をパラメータである程度選べるように修正
+                  クエストワープスイッチが機能していなかったので修正
 ----------------------------------------------------------------------------
  [HP]   : http://kilisamenosekai.web.fc2.com/
  [Twitter]: https://twitter.com/mistyrain_on_tw/
@@ -24,6 +29,12 @@ AB_QuestSystemByItem.js
  * @desc メニューで表示する「クエスト」コマンド名
  * @default クエスト
  * @type string
+ *
+ * @param QuestCommandPosition
+ * @text クエストコマンド位置
+ * @desc 0:先頭,1:ステータスの下,2:並び替えの下,3:オプションの下,4:セーブの下,5:ゲーム終了の下
+ * @default 0
+ * @type number
  *
  * @param QuestCategoryName
  * @text クエストカテゴリ名
@@ -65,6 +76,12 @@ AB_QuestSystemByItem.js
  * @text クエストワープスイッチ
  * @desc クエスト画面でクエストを選択すると、ワープできます　それを許可をするスイッチ
  * @default 2
+ * @type number
+ *
+ * @param QuestWarpDisableMode
+ * @text クエストワープ許可SWOFF時挙動
+ * @desc 許可スイッチOFFの時、0の場合、クエストの画面は閲覧だけできる。1の場合、メニュー上で無効になる。
+ * @default 0
  * @type number
  *
  * @param QuestWarpOccurrenceConfirmMessage
@@ -115,14 +132,16 @@ AB_QuestSystemByItem.js
  * 
  * 助けてぴょん
  * >
- * <questOccurrenceWarp:2,15,31>
- * <questReceiveWarp:2,24,49>
+ * <questOccurrenceWarp:2,15,31,4>
+ * <questReceiveWarp:2,24,49,6>
+ * <questWarpSe:Collapse1,50,150,-100>
  * ==============================================
  * questCategory メインストーリーとかサブイベントとか、クエストの分類です
  * questImage クエスト詳細に表示する画像を指定 img\picturesの画像ファイル、拡張子なし
  * questNote クエスト詳細に表示する文章を設定
- * questOccurrenceWarp クエスト発生状態でのワープ先を指定　マップID,X座標,Y座標
- * questReceiveWarp クエスト受注状態でのワープ先を指定　マップID,X座標,Y座標
+ * questOccurrenceWarp クエスト発生状態でのワープ先を指定　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
+ * questReceiveWarp クエスト受注状態でのワープ先を指定　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
+ * questWarpSe クエストワープ確認で「はい」選んだ時に鳴る効果音を指定。名前,ボリューム,ピッチ,位相。指定しないと普通のOK音。
  * ==============================================
  * @command Quest_None
  * @text クエスト無
@@ -336,6 +355,7 @@ function Window_QuestList() {
 var parameters = PluginManager.parameters('AB_QuestSystemByItem');
 
 var QUEST_COMMAND_NAME = parameters['QuestCommandName'] ;
+var QUEST_COMMAND_POSITION = Number(parameters['QuestCommandPosition']);
 var QUEST_CATEGORY_NAME = parameters['QuestCategoryName'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
 var QUEST_CATEGORY = parameters['QuestCategory'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
 var QUEST_PHASE_TEXT = parameters['QuestPhaseText'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
@@ -343,6 +363,7 @@ var QUEST_PHASE_TEXT_COLOR = parameters['QuestPhaseTextColor'].replace("[","").r
 var QUEST_PHASE_ICON_INDEX = parameters['QuestPhaseIconIndex'].replace("[","").replace("]","").split(",");
 var QUEST_PHASE_SORT = parameters['QuestPhaseSort'].replace("[","").replace("]","").split(",");
 var QUEST_WARP_SWITCH = Number(parameters['QuestWarpSwitch']);
+var QUEST_WARP_DISABLE_MODE = Number(parameters['QuestWarpDisableMode']);
 var QUEST_WARP_RECEIVE_CONFIRM_MESSAGE = parameters['QuestWarpReceiveConfirmMessage'];
 var QUEST_WARP_RECEIVE_CONFIRM_YES_NO = parameters['QuestWarpReceiveConfirmYesNo'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
 var QUEST_WARP_OCCURRENCE_CONFIRM_MESSAGE = parameters['QuestWarpOccurrenceConfirmMessage'];
@@ -351,47 +372,47 @@ var QUEST_WARP_OCCURRENCE_CONFIRM_YES_NO = parameters['QuestWarpOccurrenceConfir
 var QUEST_PHASE = {"none":0,"occurrence":1,"receive":2,"success":3,"failure":4,"disappear":5};
 
 PluginManager.registerCommand("AB_QuestSystemByItem", "Quest_None", args => {
-	$gameParty.setQuestPhase(args.itemId,QUEST_PHASE["none"]);
+    $gameParty.setQuestPhase(args.itemId,QUEST_PHASE["none"]);
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "Quest_Occurrence", args => {
-	$gameParty.setQuestPhase(args.itemId,QUEST_PHASE["occurrence"]);
+    $gameParty.setQuestPhase(args.itemId,QUEST_PHASE["occurrence"]);
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "Quest_Receive", args => {
-	$gameParty.setQuestPhase(args.itemId,QUEST_PHASE["receive"]);
+    $gameParty.setQuestPhase(args.itemId,QUEST_PHASE["receive"]);
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "Quest_Success", args => {
-	$gameParty.setQuestPhase(args.itemId,QUEST_PHASE["success"]);
+    $gameParty.setQuestPhase(args.itemId,QUEST_PHASE["success"]);
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "Quest_Failure", args => {
-	$gameParty.setQuestPhase(args.itemId,QUEST_PHASE["failure"]);
+    $gameParty.setQuestPhase(args.itemId,QUEST_PHASE["failure"]);
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "Quest_Disappear", args => {
-	$gameParty.setQuestPhase(args.itemId,QUEST_PHASE["disappear"]);
+    $gameParty.setQuestPhase(args.itemId,QUEST_PHASE["disappear"]);
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "GetQuestPhase", args => {
-	$gameVariables.setValue(args.variableId, $gameParty.getQuestPhase(args.itemId));
+    $gameVariables.setValue(args.variableId, $gameParty.getQuestPhase(args.itemId));
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "IsQuestNone", args => {
-	$gameSwitches.setValue(args.switchId, $gameParty.isQuestNone(args.itemId));
+    $gameSwitches.setValue(args.switchId, $gameParty.isQuestNone(args.itemId));
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "isQuestOccurrence", args => {
-	$gameSwitches.setValue(args.switchId, $gameParty.isQuestOccurrence(args.itemId));
+    $gameSwitches.setValue(args.switchId, $gameParty.isQuestOccurrence(args.itemId));
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "isQuestReceive", args => {
-	$gameSwitches.setValue(args.switchId, $gameParty.isQuestReceive(args.itemId));
+    $gameSwitches.setValue(args.switchId, $gameParty.isQuestReceive(args.itemId));
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "isQuestSuccess", args => {
-	$gameSwitches.setValue(args.switchId, $gameParty.isQuestSuccess(args.itemId));
+    $gameSwitches.setValue(args.switchId, $gameParty.isQuestSuccess(args.itemId));
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "isQuestFailure", args => {
-	$gameSwitches.setValue(args.switchId, $gameParty.isQuestFailure(args.itemId));
+    $gameSwitches.setValue(args.switchId, $gameParty.isQuestFailure(args.itemId));
 });
 PluginManager.registerCommand("AB_QuestSystemByItem", "isQuestDisappear", args => {
-	$gameSwitches.setValue(args.switchId, $gameParty.isQuestDisappear(args.itemId));
+    $gameSwitches.setValue(args.switchId, $gameParty.isQuestDisappear(args.itemId));
 });
 
 Game_Party.prototype.setQuestPhase = function(itemId, newPhase) {
-	const item = $dataItems[itemId];
+    const item = $dataItems[itemId];
     const container = this.itemContainer(item);
     if (container) {
         container[item.id] = newPhase;
@@ -402,49 +423,96 @@ Game_Party.prototype.setQuestPhase = function(itemId, newPhase) {
     }
 };
 Game_Party.prototype.getQuestPhase = function(itemId) {
-	const item = $dataItems[itemId];
+    const item = $dataItems[itemId];
     const container = this.itemContainer(item);
     return container ? container[item.id] || 0 : 0;
 };
 Game_Party.prototype.checkQuestPhase = function(itemId,checkPhase) {
-	const getPhase = this.getQuestPhase(itemId);
-	if(getPhase == QUEST_PHASE[checkPhase]){
-		return true;
-	}
-	return false;
+    const getPhase = this.getQuestPhase(itemId);
+    if(getPhase == QUEST_PHASE[checkPhase]){
+        return true;
+    }
+    return false;
 };
 var QUEST_PHASE = {"none":0,"occurrence":1,"receive":2,"success":3,"failure":4,"disappear":5};
 Game_Party.prototype.isQuestNone = function(itemId)
 {
-	return this.checkQuestPhase(itemId,"none");
+    return this.checkQuestPhase(itemId,"none");
 }
 Game_Party.prototype.isQuestOccurrence = function(itemId)
 {
-	return this.checkQuestPhase(itemId,"occurrence");
+    return this.checkQuestPhase(itemId,"occurrence");
 }
 Game_Party.prototype.isQuestReceive = function(itemId)
 {
-	return this.checkQuestPhase(itemId,"receive");
+    return this.checkQuestPhase(itemId,"receive");
 }
 Game_Party.prototype.isQuestSuccess = function(itemId)
 {
-	return this.checkQuestPhase(itemId,"success");
+    return this.checkQuestPhase(itemId,"success");
 }
 Game_Party.prototype.isQuestFailure = function(itemId)
 {
-	return this.checkQuestPhase(itemId,"failure");
+    return this.checkQuestPhase(itemId,"failure");
 }
 Game_Party.prototype.isQuestDisappear = function(itemId)
 {
-	return this.checkQuestPhase(itemId,"disappear");
+    return this.checkQuestPhase(itemId,"disappear");
 }
 
 var AB_QESTSSTMBYITM_Window_MenuCommand_addMainCommands = Window_MenuCommand.prototype.addMainCommands;
 Window_MenuCommand.prototype.addMainCommands = function() {
+    if(QUEST_COMMAND_POSITION == 0){
+      this.addQuestCommand();
+    }
     AB_QESTSSTMBYITM_Window_MenuCommand_addMainCommands.call(this);
-    const enabled = this.areMainCommandsEnabled();
+    if(QUEST_COMMAND_POSITION == 1){
+      this.addQuestCommand();
+    }
+};
+
+var AB_QESTSSTMBYITM_Window_MenuCommand_addFormationCommand = Window_MenuCommand.prototype.addFormationCommand;
+Window_MenuCommand.prototype.addFormationCommand = function() {
+    AB_QESTSSTMBYITM_Window_MenuCommand_addFormationCommand.call(this);
+    if(QUEST_COMMAND_POSITION == 2){
+      this.addQuestCommand();
+    }
+};
+
+var AB_QESTSSTMBYITM_Window_MenuCommand_addOptionsCommand = Window_MenuCommand.prototype.addOptionsCommand;
+Window_MenuCommand.prototype.addOptionsCommand = function() {
+    AB_QESTSSTMBYITM_Window_MenuCommand_addOptionsCommand.call(this);
+    if(QUEST_COMMAND_POSITION == 3){
+      this.addQuestCommand();
+    }
+};
+
+var AB_QESTSSTMBYITM_Window_MenuCommand_addSaveCommand = Window_MenuCommand.prototype.addSaveCommand;
+Window_MenuCommand.prototype.addSaveCommand = function() {
+    AB_QESTSSTMBYITM_Window_MenuCommand_addSaveCommand.call(this);
+    if(QUEST_COMMAND_POSITION == 4){
+      this.addQuestCommand();
+    }
+};
+
+var AB_QESTSSTMBYITM_Window_MenuCommand_addGameEndCommand = Window_MenuCommand.prototype.addGameEndCommand;
+Window_MenuCommand.prototype.addGameEndCommand = function() {
+    AB_QESTSSTMBYITM_Window_MenuCommand_addGameEndCommand.call(this);
+    if(QUEST_COMMAND_POSITION == 5){
+      this.addQuestCommand();
+    }
+};
+
+Window_MenuCommand.prototype.addQuestCommand = function(){
+    enabled = this.areMainCommandsEnabled();
+    if(QUEST_WARP_DISABLE_MODE == 1){
+        if(!$gameSwitches.value(QUEST_WARP_SWITCH)){
+            enabled = false;
+        }
+    }
     this.addCommand(QUEST_COMMAND_NAME, "quest", enabled);
 };
+
 
 var AB_QESTSSTMBYITM_Scene_Menu_createCommandWindow = Scene_Menu.prototype.createCommandWindow;
 Scene_Menu.prototype.createCommandWindow = function() {
@@ -557,27 +625,27 @@ Scene_Quest.prototype.onCategoryOk = function() {
 Scene_Quest.prototype.onItemOk = function() {
     var selected = this.item();
     if(selected){
-    	if(selected.meta.questReceiveWarp && $gameParty.isQuestReceive(selected.id)){
-    		this._confirmWindow.setMode(QUEST_PHASE["receive"]);
-    		this._confirmWindow.refresh();
-			this._confirmWindow.visible = true;
-			this._confirmWindow.select(0);
-		    this._confirmWindow.activate();
-		    return ;
-    	}else if(selected.meta.questOccurrenceWarp && $gameParty.isQuestOccurrence(selected.id)){
-    		this._confirmWindow.setMode(QUEST_PHASE["occurrence"]);
-    		this._confirmWindow.refresh();
-			this._confirmWindow.visible = true;
-			this._confirmWindow.select(0);
-		    this._confirmWindow.activate();
-		    return ;
-    	}
+        if(selected.meta.questReceiveWarp && $gameParty.isQuestReceive(selected.id) && $gameSwitches.value(QUEST_WARP_SWITCH)){
+            this._confirmWindow.setMode(QUEST_PHASE["receive"]);
+            this._confirmWindow.refresh();
+            this._confirmWindow.visible = true;
+            this._confirmWindow.select(0);
+            this._confirmWindow.activate();
+            return ;
+        }else if(selected.meta.questOccurrenceWarp && $gameParty.isQuestOccurrence(selected.id) && $gameSwitches.value(QUEST_WARP_SWITCH)){
+            this._confirmWindow.setMode(QUEST_PHASE["occurrence"]);
+            this._confirmWindow.refresh();
+            this._confirmWindow.visible = true;
+            this._confirmWindow.select(0);
+            this._confirmWindow.activate();
+            return ;
+        }
     }
     this._itemWindow.activate();
 };
 Scene_Quest.prototype.onItemCancel = function() {
-	if (this._categoryWindow.needsSelection()) {
-    	this._detailWindow.setItem(null);
+    if (this._categoryWindow.needsSelection()) {
+        this._detailWindow.setItem(null);
         this._itemWindow.deselect();
         this._categoryWindow.activate();
     } else {
@@ -585,33 +653,50 @@ Scene_Quest.prototype.onItemCancel = function() {
     }
 };
 Scene_Quest.prototype.onConfirmOk = function() {
-	if(this._confirmWindow.index() == 0)
-	{
-	    var selected = this.item();
-	    if($gameParty.isQuestOccurrence(selected.id) && selected.meta.questOccurrenceWarp){
-		    var questWarp = selected.meta.questOccurrenceWarp.split(",");
-		    $gamePlayer.reserveTransfer(
-		    	Number(questWarp[0])
-		    	, Number(questWarp[1])
-		    	, Number(questWarp[2])
-		    	, 0, 0);
-		    SceneManager.goto(Scene_Map);	
-	    }else if($gameParty.isQuestReceive(selected.id) && selected.meta.questReceiveWarp){
-		    var questWarp = selected.meta.questReceiveWarp.split(",");
-		    $gamePlayer.reserveTransfer(
-		    	Number(questWarp[0])
-		    	, Number(questWarp[1])
-		    	, Number(questWarp[2])
-		    	, 0, 0);
-		    SceneManager.goto(Scene_Map);	
-	    }
-	}else{
-		this.onConfirmCancel();
-	}
+    if(this._confirmWindow.index() == 0)
+    {
+        var selected = this.item();
+        if($gameParty.isQuestOccurrence(selected.id) && selected.meta.questOccurrenceWarp){
+            this.playQuestWarpSe(selected);
+            var questWarp = selected.meta.questOccurrenceWarp.split(",");
+            $gamePlayer.reserveTransfer(
+                Number(questWarp[0])
+                , Number(questWarp[1])
+                , Number(questWarp[2])
+                , Number(questWarp[3]), 0);
+            SceneManager.goto(Scene_Map);    
+        }else if($gameParty.isQuestReceive(selected.id) && selected.meta.questReceiveWarp){
+            this.playQuestWarpSe(selected);
+            var questWarp = selected.meta.questReceiveWarp.split(",");
+            $gamePlayer.reserveTransfer(
+                Number(questWarp[0])
+                , Number(questWarp[1])
+                , Number(questWarp[2])
+                , Number(questWarp[3]), 0);
+            SceneManager.goto(Scene_Map);    
+        }
+    }else{
+        this.onConfirmCancel();
+    }
 };
+
+Scene_Quest.prototype.playQuestWarpSe = function(selected) {
+    if( selected.meta.questWarpSe){
+        var questWarpSe = selected.meta.questWarpSe.split(",");
+        var seObj = AudioManager.makeEmptyAudioObject();
+        seObj.name = questWarpSe[0];
+        seObj.volume = Number(questWarpSe[1]);
+        seObj.pitch = Number(questWarpSe[2]);
+        seObj.pan = Number(questWarpSe[3]);
+        AudioManager.playSe(seObj);
+    }else{
+        SoundManager.playOk();
+    }
+};
+
 Scene_Quest.prototype.onConfirmCancel = function() {
-	this._confirmWindow.deselect();
-	this._confirmWindow.visible = false;
+    this._confirmWindow.deselect();
+    this._confirmWindow.visible = false;
     this._itemWindow.activate();
 };
 
@@ -621,14 +706,14 @@ Scene_Quest.prototype.playSeForItem = function() {
 
 var AB_QESTSSTMBYITM_Scene_Quest_update = Scene_Quest.prototype.update;
 Scene_Quest.prototype.update = function(){
-	AB_QESTSSTMBYITM_Scene_Quest_update.call(this);
-	if(this._itemWindow.active){
-		if(this._itemWindow.index() != this._saveIndex){
-			this._saveIndex = this._itemWindow.index();
-			this._detailWindow.setItem(this._itemWindow.item())
-		}
-	}
-	
+    AB_QESTSSTMBYITM_Scene_Quest_update.call(this);
+    if(this._itemWindow.active){
+        if(this._itemWindow.index() != this._saveIndex){
+            this._saveIndex = this._itemWindow.index();
+            this._detailWindow.setItem(this._itemWindow.item())
+        }
+    }
+    
 }
 Scene_Quest.prototype.helpAreaHeight = function() {
     return 0;
@@ -662,9 +747,9 @@ Window_QuestCategory.prototype.update = function() {
 };
 
 Window_QuestCategory.prototype.makeCommandList = function() {
-	for(var i = 0 ; i< QUEST_CATEGORY_NAME.length ; i++){
-		this.addCommand(QUEST_CATEGORY_NAME[i], QUEST_CATEGORY[i]);
-	}
+    for(var i = 0 ; i< QUEST_CATEGORY_NAME.length ; i++){
+        this.addCommand(QUEST_CATEGORY_NAME[i], QUEST_CATEGORY[i]);
+    }
 };
 
 Window_QuestCategory.prototype.needsCommand = function(name) {
@@ -727,13 +812,13 @@ Window_QuestList.prototype.isCurrentItemEnabled = function() {
 };
 
 Window_QuestList.prototype.includes = function(item) {
-	if(item === null){
-		return false;
-	}
-	if(item.meta.questCategory === this._category){
-		return true;
-	}
-	return false;
+    if(item === null){
+        return false;
+    }
+    if(item.meta.questCategory === this._category){
+        return true;
+    }
+    return false;
 };
 
 Window_QuestList.prototype.needsNumber = function() {
@@ -745,18 +830,18 @@ Window_QuestList.prototype.isEnabled = function(item) {
 };
 
 Window_QuestList.prototype.makeItemList = function() {
-	this._data = [];
-	for(var i = 0; i < QUEST_PHASE_SORT.length ;i++)
-	{
-	    var data = $gameParty.allItems().filter(item => this.includes(item)
-	     && $gameParty.getQuestPhase(item.id) == Number(QUEST_PHASE_SORT[i].replace(/"/g, '')));
-	    for(var j = 0 ; j < data.length; j++){
-	    	this._data.push(data[j]);
-	    }
-	}
+    this._data = [];
+    for(var i = 0; i < QUEST_PHASE_SORT.length ;i++)
+    {
+        var data = $gameParty.allItems().filter(item => this.includes(item)
+         && $gameParty.getQuestPhase(item.id) == Number(QUEST_PHASE_SORT[i].replace(/"/g, '')));
+        for(var j = 0 ; j < data.length; j++){
+            this._data.push(data[j]);
+        }
+    }
     if (this.includes(null)) {
         this._data.push(null);
-    }	
+    }    
 };
 
 Window_QuestList.prototype.selectLast = function() {
@@ -772,8 +857,8 @@ Window_QuestList.prototype.drawQuestName = function(item, x, y, width) {
         const phase = $gameParty.getQuestPhase(item.id)-1;
         if(QUEST_PHASE_ICON_INDEX[phase])
         {
-        	const iconY = y + (this.lineHeight() - ImageManager.iconHeight) / 2;
-        	this.drawIcon(QUEST_PHASE_ICON_INDEX[phase].replace(/"/g, ''), x, iconY);	
+            const iconY = y + (this.lineHeight() - ImageManager.iconHeight) / 2;
+            this.drawIcon(QUEST_PHASE_ICON_INDEX[phase].replace(/"/g, ''), x, iconY);    
         }
     }
 };
@@ -818,45 +903,45 @@ Window_QuestDetail.prototype.colSpacing = function() {
 };
 
 Window_QuestDetail.prototype.refresh = function() {
-	this.contents.clear();
-	if(this._item){
-		if(this._item.meta.questImage){
-	    	const rect = this.itemLineRect(1);
-    		var bitmap = ImageManager.loadPicture(this._item.meta.questImage);
-    		this._sprite.bitmap = bitmap;
-    		this._sprite.opacity = 128;
-    		this._sprite.x = rect.x;
-    		this._sprite.y = rect.y;
-    	}else{
-    		this._sprite.bitmap = null;
-    	}
-		const align = this.itemTextAlign();
-	    this.resetTextColor();
-	    this.changePaintOpacity(true);
-		var lineNumber = 0;
-		const phase = $gameParty.getQuestPhase(this._item.id)-1;
-		if(QUEST_PHASE_TEXT[phase])
-		{
-	    	const rect = this.itemLineRect(lineNumber);
-	    	if(QUEST_PHASE_TEXT_COLOR[phase])
-	    	{
-	    		this.drawTextEx("\\C["+(QUEST_PHASE_TEXT_COLOR[phase].replace(/"/g, ''))+"]"+QUEST_PHASE_TEXT[phase], rect.x, rect.y, rect.width, align);
-	    	}else{
-	    		this.drawTextEx(QUEST_PHASE_TEXT[phase], rect.x, rect.y, rect.width, align);
-	    	}
-	    	lineNumber+=1;	
-		}
-		if(this._item.meta.questNote){
-		    const notes = this._item.meta.questNote.split('\n');
-		    for(var i = 0;i<notes.length;i++)
-		    {
-		    	const rect = this.itemLineRect(lineNumber);
-		    	this.drawTextEx(notes[i], rect.x, rect.y, rect.width, align);	
-		    	lineNumber+=1;
-		    }
-		}
-	}else{
-    		this._sprite.bitmap = null;
+    this.contents.clear();
+    if(this._item){
+        if(this._item.meta.questImage){
+            const rect = this.itemLineRect(1);
+            var bitmap = ImageManager.loadPicture(this._item.meta.questImage);
+            this._sprite.bitmap = bitmap;
+            this._sprite.opacity = 128;
+            this._sprite.x = rect.x;
+            this._sprite.y = rect.y;
+        }else{
+            this._sprite.bitmap = null;
+        }
+        const align = this.itemTextAlign();
+        this.resetTextColor();
+        this.changePaintOpacity(true);
+        var lineNumber = 0;
+        const phase = $gameParty.getQuestPhase(this._item.id)-1;
+        if(QUEST_PHASE_TEXT[phase])
+        {
+            const rect = this.itemLineRect(lineNumber);
+            if(QUEST_PHASE_TEXT_COLOR[phase])
+            {
+                this.drawTextEx("\\C["+(QUEST_PHASE_TEXT_COLOR[phase].replace(/"/g, ''))+"]"+QUEST_PHASE_TEXT[phase], rect.x, rect.y, rect.width, align);
+            }else{
+                this.drawTextEx(QUEST_PHASE_TEXT[phase], rect.x, rect.y, rect.width, align);
+            }
+            lineNumber+=1;    
+        }
+        if(this._item.meta.questNote){
+            const notes = this._item.meta.questNote.split('\n');
+            for(var i = 0;i<notes.length;i++)
+            {
+                const rect = this.itemLineRect(lineNumber);
+                this.drawTextEx(notes[i], rect.x, rect.y, rect.width, align);    
+                lineNumber+=1;
+            }
+        }
+    }else{
+            this._sprite.bitmap = null;
     }
 };
 Window_QuestDetail.prototype.itemTextAlign = function() {
@@ -871,8 +956,8 @@ Window_QuestDetail.prototype.open = function() {
     Window_Selectable.prototype.open.call(this);
 };
 Window_QuestDetail.prototype.setItem = function(item){
-	this._item = item;
-	this.refresh();
+    this._item = item;
+    this.refresh();
 }
 
 //-----------------------------------------------------------------------------
@@ -904,29 +989,29 @@ Window_QuestWarpConfirm.prototype.update = function() {
 };
 var AB_QESTSSTMBYITM_Window_QuestWarpConfirm_drawAllItems = Window_QuestWarpConfirm.prototype.drawAllItems;
 Window_QuestWarpConfirm.prototype.drawAllItems = function() {
-	if(this._mode == QUEST_PHASE["occurrence"]){
-		var rect = this.itemRect(-1);
-		this.drawTextEx(QUEST_WARP_OCCURRENCE_CONFIRM_MESSAGE, rect.x,rect.y,rect.width);	
-	}else if(this._mode == QUEST_PHASE["receive"]){
-		var rect = this.itemRect(-1);
-		this.drawTextEx(QUEST_WARP_RECEIVE_CONFIRM_MESSAGE, rect.x,rect.y,rect.width);	
-	}
-	AB_QESTSSTMBYITM_Window_QuestWarpConfirm_drawAllItems.call(this);
+    if(this._mode == QUEST_PHASE["occurrence"]){
+        var rect = this.itemRect(-1);
+        this.drawTextEx(QUEST_WARP_OCCURRENCE_CONFIRM_MESSAGE, rect.x,rect.y,rect.width);    
+    }else if(this._mode == QUEST_PHASE["receive"]){
+        var rect = this.itemRect(-1);
+        this.drawTextEx(QUEST_WARP_RECEIVE_CONFIRM_MESSAGE, rect.x,rect.y,rect.width);    
+    }
+    AB_QESTSSTMBYITM_Window_QuestWarpConfirm_drawAllItems.call(this);
 };
 Window_QuestWarpConfirm.prototype.makeCommandList = function() {
-	if(this._mode == QUEST_PHASE["occurrence"]){
-		for(var i = 0 ; i< QUEST_WARP_OCCURRENCE_CONFIRM_YES_NO.length ; i++){
-			this.addCommand(QUEST_WARP_OCCURRENCE_CONFIRM_YES_NO[i], i);
-		}
-	}else if(this._mode == QUEST_PHASE["receive"]){
-		for(var i = 0 ; i< QUEST_WARP_RECEIVE_CONFIRM_YES_NO.length ; i++){
-			this.addCommand(QUEST_WARP_RECEIVE_CONFIRM_YES_NO[i], i);
-		}
-	}
+    if(this._mode == QUEST_PHASE["occurrence"]){
+        for(var i = 0 ; i< QUEST_WARP_OCCURRENCE_CONFIRM_YES_NO.length ; i++){
+            this.addCommand(QUEST_WARP_OCCURRENCE_CONFIRM_YES_NO[i], i);
+        }
+    }else if(this._mode == QUEST_PHASE["receive"]){
+        for(var i = 0 ; i< QUEST_WARP_RECEIVE_CONFIRM_YES_NO.length ; i++){
+            this.addCommand(QUEST_WARP_RECEIVE_CONFIRM_YES_NO[i], i);
+        }
+    }
 };
 var AB_QESTSSTMBYITM_Window_QuestWarpConfirm_itemRect = Window_QuestWarpConfirm.prototype.itemRect;
 Window_QuestWarpConfirm.prototype.itemRect = function(index) {
-	return AB_QESTSSTMBYITM_Window_QuestWarpConfirm_itemRect.call(this,index+1);
+    return AB_QESTSSTMBYITM_Window_QuestWarpConfirm_itemRect.call(this,index+1);
 };
 
 Window_QuestWarpConfirm.prototype.needsCommand = function(name) {
@@ -935,6 +1020,10 @@ Window_QuestWarpConfirm.prototype.needsCommand = function(name) {
 
 Window_QuestWarpConfirm.prototype.needsSelection = function() {
     return this.maxItems() >= 2;
+};
+
+Window_QuestWarpConfirm.prototype.playOkSound = function() {
+    // ここでは音を鳴らさない 楽そうなのでonConfirmOkで鳴らす。
 };
 
 })();
