@@ -8,6 +8,10 @@
  Version
  1.0.0 2021/05/03
  1.0.1 2021/07/27 他スクリプトと100%競合するので修正
+ 1.1.0 2021/11/14 ファストトラベル禁止時、画面で閲覧だけできるか、メニュー時点で禁止にするかをパラメータで指定できるように修正
+                  ファストトラベル後の向きを場所毎に指定できるように修正
+                  ファストトラベル確認で「はい」選んだ時の効果音を、場所毎に設定できるよう修正
+                  ファストトラベルコマンドのメニュー上の位置をパラメータである程度選べるように修正
 ----------------------------------------------------------------------------
  [HP]   : http://kilisamenosekai.web.fc2.com/
  [Twitter]: https://twitter.com/mistyrain_on_tw/
@@ -25,6 +29,12 @@
  * @default ファストトラベル
  * @type string
  *
+ * @param FastTravelCommandPosition
+ * @text ファストトラベルコマンド位置
+ * @desc 0:先頭,1:ステータスの下,2:並び替えの下,3:オプションの下,4:セーブの下,5:ゲーム終了の下
+ * @default 0
+ * @type number
+ *
  * @param FastTravelCategoryName
  * @text ファストトラベルカテゴリ名
  * @desc ファストトラベルを分類する分類名
@@ -37,11 +47,16 @@
  * @default ["town","dungeon","other"]
  * @type string[]
  *
- *
  * @param FastTravelEnableSwitch
  * @text ファストトラベル許可スイッチ
  * @desc ファストトラベルからの移動を許可するスイッチ ONで許可する。
  * @default 2
+ * @type number
+ *
+ * @param FastTravelDisableMode
+ * @text ファストラ許可SWOFF時挙動
+ * @desc 許可スイッチOFFの時、0の場合、ファストトラベルの画面は閲覧だけできる。1の場合、メニュー上で無効になる。
+ * @default 0
  * @type number
  *
  * @param FastTravelConfirmMessage
@@ -67,12 +82,14 @@
  * <fastTravelNote:ニャホヒリペの生まれる場所
  * 適度に伐採しないと異常繁殖してしまうらしい。
  * >
- * <fastTravelLocation:2,24,49>
+ * <fastTravelLocation:2,24,49,4>
+ * <fastTravelSe:Collapse1,50,150,-100>
  * ==============================================
  * fastTravelCategory 街とかダンジョンとか、ファストトラベルの分類です
  * fastTravelImage ファストトラベル詳細に表示する画像を指定 img\picturesの画像ファイル、拡張子なし
  * fastTravelNote ファストトラベル詳細に表示する文章を設定
- * fastTravelLocation ファストトラベルでの移動先を指定　マップID,X座標,Y座標
+ * fastTravelLocation ファストトラベルでの移動先を指定　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
+ * fastTravelSe ファストトラベル確認で「はい」選んだ時に鳴る効果音を指定。名前,ボリューム,ピッチ,位相。指定しないと普通のOK音。
  * ==============================================
  */
 function Window_FastTravelList() {
@@ -83,17 +100,65 @@ function Window_FastTravelList() {
 var parameters = PluginManager.parameters('AB_FastTravelByItem');
 
 var FASTTRAVEL_COMMAND_NAME = parameters['FastTravelCommandName'] ;
+var FASTTRAVEL_COMMAND_POSITION = Number(parameters['FastTravelCommandPosition']);
 var FASTTRAVEL_CATEGORY_NAME = parameters['FastTravelCategoryName'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
 var FASTTRAVEL_CATEGORY = parameters['FastTravelCategory'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
 var FASTTRAVEL_ENABLE_SWITCH = Number(parameters['FastTravelEnableSwitch']);
+var FASTTRAVEL_DISABLE_MODE = Number(parameters['FastTravelDisableMode']);
 var FASTTRAVEL_CONFIRM_MESSAGE = parameters['FastTravelConfirmMessage'];
 var FASTTRAVEL_CONFIRM_YES_NO = parameters['FastTravelConfirmYesNo'].replace("[","").replace("]","").replace(/"/g,"").split(',') ;
 
 
 var AB_FSTRVLBYITEM_Window_MenuCommand_addMainCommands = Window_MenuCommand.prototype.addMainCommands;
 Window_MenuCommand.prototype.addMainCommands = function() {
+    if(FASTTRAVEL_COMMAND_POSITION == 0){
+      this.addFastTravelCommand();
+    }
     AB_FSTRVLBYITEM_Window_MenuCommand_addMainCommands.call(this);
-    const enabled = this.areMainCommandsEnabled();
+    if(FASTTRAVEL_COMMAND_POSITION == 1){
+      this.addFastTravelCommand();
+    }
+};
+
+var AB_FSTRVLBYITEM_Window_MenuCommand_addFormationCommand = Window_MenuCommand.prototype.addFormationCommand;
+Window_MenuCommand.prototype.addFormationCommand = function() {
+    AB_FSTRVLBYITEM_Window_MenuCommand_addFormationCommand.call(this);
+    if(FASTTRAVEL_COMMAND_POSITION == 2){
+      this.addFastTravelCommand();
+    }
+};
+
+var AB_FSTRVLBYITEM_Window_MenuCommand_addOptionsCommand = Window_MenuCommand.prototype.addOptionsCommand;
+Window_MenuCommand.prototype.addOptionsCommand = function() {
+    AB_FSTRVLBYITEM_Window_MenuCommand_addOptionsCommand.call(this);
+    if(FASTTRAVEL_COMMAND_POSITION == 3){
+      this.addFastTravelCommand();
+    }
+};
+
+var AB_FSTRVLBYITEM_Window_MenuCommand_addSaveCommand = Window_MenuCommand.prototype.addSaveCommand;
+Window_MenuCommand.prototype.addSaveCommand = function() {
+    AB_FSTRVLBYITEM_Window_MenuCommand_addSaveCommand.call(this);
+    if(FASTTRAVEL_COMMAND_POSITION == 4){
+      this.addFastTravelCommand();
+    }
+};
+
+var AB_FSTRVLBYITEM_Window_MenuCommand_addGameEndCommand = Window_MenuCommand.prototype.addGameEndCommand;
+Window_MenuCommand.prototype.addGameEndCommand = function() {
+    AB_FSTRVLBYITEM_Window_MenuCommand_addGameEndCommand.call(this);
+    if(FASTTRAVEL_COMMAND_POSITION == 5){
+      this.addFastTravelCommand();
+    }
+};
+
+Window_MenuCommand.prototype.addFastTravelCommand = function(){
+    enabled = this.areMainCommandsEnabled();
+    if(FASTTRAVEL_DISABLE_MODE == 1){
+        if(!$gameSwitches.value(FASTTRAVEL_ENABLE_SWITCH)){
+            enabled = false;
+        }
+    }
     this.addCommand(FASTTRAVEL_COMMAND_NAME, "fastTravel", enabled);
 };
 
@@ -212,19 +277,19 @@ Scene_FastTravel.prototype.onCategoryOk = function() {
 Scene_FastTravel.prototype.onItemOk = function() {
     var selected = this.item();
     if(selected){
-    	if(selected.meta.fastTravelLocation && $gameSwitches.value(FASTTRAVEL_ENABLE_SWITCH)){
-    		this._confirmWindow.refresh();
-			this._confirmWindow.visible = true;
-			this._confirmWindow.select(0);
-		    this._confirmWindow.activate();
-		    return ;
-    	}
+        if(selected.meta.fastTravelLocation && $gameSwitches.value(FASTTRAVEL_ENABLE_SWITCH)){
+            this._confirmWindow.refresh();
+            this._confirmWindow.visible = true;
+            this._confirmWindow.select(0);
+            this._confirmWindow.activate();
+            return ;
+        }
     }
     this._itemWindow.activate();
 };
 Scene_FastTravel.prototype.onItemCancel = function() {
-	if (this._categoryWindow.needsSelection()) {
-    	this._detailWindow.setItem(null);
+    if (this._categoryWindow.needsSelection()) {
+        this._detailWindow.setItem(null);
         this._itemWindow.deselect();
         this._categoryWindow.activate();
     } else {
@@ -232,25 +297,36 @@ Scene_FastTravel.prototype.onItemCancel = function() {
     }
 };
 Scene_FastTravel.prototype.onConfirmOk = function() {
-	if(this._confirmWindow.index() == 0)
-	{
-	    var selected = this.item();
-	    if( selected.meta.fastTravelLocation ){
-		    var fastTravelWarp = selected.meta.fastTravelLocation.split(",");
-		    $gamePlayer.reserveTransfer(
-		    	Number(fastTravelWarp[0])
-		    	, Number(fastTravelWarp[1])
-		    	, Number(fastTravelWarp[2])
-		    	, 0, 0);
-		    SceneManager.goto(Scene_Map);	
-	    }
-	}else{
-		this.onConfirmCancel();
-	}
+    if(this._confirmWindow.index() == 0)
+    {
+        var selected = this.item();
+        if( selected.meta.fastTravelLocation ){
+            var fastTravelWarp = selected.meta.fastTravelLocation.split(",");
+            if( selected.meta.fastTravelSe){
+                var fastTravelSe = selected.meta.fastTravelSe.split(",");
+                var seObj = AudioManager.makeEmptyAudioObject();
+                seObj.name = fastTravelSe[0];
+                seObj.volume = Number(fastTravelSe[1]);
+                seObj.pitch = Number(fastTravelSe[2]);
+                seObj.pan = Number(fastTravelSe[3]);
+                AudioManager.playSe(seObj);
+            }else{
+                SoundManager.playOk();
+            }
+            $gamePlayer.reserveTransfer(
+                Number(fastTravelWarp[0])
+                , Number(fastTravelWarp[1])
+                , Number(fastTravelWarp[2])
+                , Number(fastTravelWarp[3]), 0);
+            SceneManager.goto(Scene_Map);    
+        }
+    }else{
+        this.onConfirmCancel();
+    }
 };
 Scene_FastTravel.prototype.onConfirmCancel = function() {
-	this._confirmWindow.deselect();
-	this._confirmWindow.visible = false;
+    this._confirmWindow.deselect();
+    this._confirmWindow.visible = false;
     this._itemWindow.activate();
 };
 
@@ -260,14 +336,14 @@ Scene_FastTravel.prototype.playSeForItem = function() {
 
 var AB_FSTRVLBYITEM_Scene_FastTravel_update = Scene_FastTravel.prototype.update;
 Scene_FastTravel.prototype.update = function(){
-	AB_FSTRVLBYITEM_Scene_FastTravel_update.call(this);
-	if(this._itemWindow.active){
-		if(this._itemWindow.index() != this._saveIndex){
-			this._saveIndex = this._itemWindow.index();
-			this._detailWindow.setItem(this._itemWindow.item())
-		}
-	}
-	
+    AB_FSTRVLBYITEM_Scene_FastTravel_update.call(this);
+    if(this._itemWindow.active){
+        if(this._itemWindow.index() != this._saveIndex){
+            this._saveIndex = this._itemWindow.index();
+            this._detailWindow.setItem(this._itemWindow.item())
+        }
+    }
+    
 }
 Scene_FastTravel.prototype.helpAreaHeight = function() {
     return 0;
@@ -301,9 +377,9 @@ Window_FastTravelCategory.prototype.update = function() {
 };
 
 Window_FastTravelCategory.prototype.makeCommandList = function() {
-	for(var i = 0 ; i< FASTTRAVEL_CATEGORY_NAME.length ; i++){
-		this.addCommand(FASTTRAVEL_CATEGORY_NAME[i], FASTTRAVEL_CATEGORY[i]);
-	}
+    for(var i = 0 ; i< FASTTRAVEL_CATEGORY_NAME.length ; i++){
+        this.addCommand(FASTTRAVEL_CATEGORY_NAME[i], FASTTRAVEL_CATEGORY[i]);
+    }
 };
 
 Window_FastTravelCategory.prototype.needsCommand = function(name) {
@@ -365,13 +441,13 @@ Window_FastTravelList.prototype.isCurrentItemEnabled = function() {
 };
 
 Window_FastTravelList.prototype.includes = function(item) {
-	if(item === null){
-		return false;
-	}
-	if(item.meta.fastTravelCategory === this._category){
-		return true;
-	}
-	return false;
+    if(item === null){
+        return false;
+    }
+    if(item.meta.fastTravelCategory === this._category){
+        return true;
+    }
+    return false;
 };
 
 Window_FastTravelList.prototype.needsNumber = function() {
@@ -383,7 +459,7 @@ Window_FastTravelList.prototype.isEnabled = function(item) {
 };
 
 Window_FastTravelList.prototype.makeItemList = function() {
-	this._data = $gameParty.allItems().filter(item => this.includes(item));
+    this._data = $gameParty.allItems().filter(item => this.includes(item));
 };
 
 Window_FastTravelList.prototype.selectLast = function() {
@@ -439,33 +515,33 @@ Window_FastTravelDetail.prototype.colSpacing = function() {
 };
 
 Window_FastTravelDetail.prototype.refresh = function() {
-	this.contents.clear();
-	if(this._item){
-		if(this._item.meta.fastTravelImage){
-	    	const rect = this.itemLineRect(1);
-    		var bitmap = ImageManager.loadPicture(this._item.meta.fastTravelImage);
-    		this._sprite.bitmap = bitmap;
-    		this._sprite.opacity = 128;
-    		this._sprite.x = rect.x;
-    		this._sprite.y = rect.y;
-    	}else{
-    		this._sprite.bitmap = null;
-    	}
-		const align = this.itemTextAlign();
-	    this.resetTextColor();
-	    this.changePaintOpacity(true);
-		var lineNumber = 0;
-		if(this._item.meta.fastTravelNote){
-		    const notes = this._item.meta.fastTravelNote.split('\n');
-		    for(var i = 0;i<notes.length;i++)
-		    {
-		    	const rect = this.itemLineRect(lineNumber);
-		    	this.drawTextEx(notes[i], rect.x, rect.y, rect.width, align);	
-		    	lineNumber+=1;
-		    }
-		}
-	}else{
-    		this._sprite.bitmap = null;
+    this.contents.clear();
+    if(this._item){
+        if(this._item.meta.fastTravelImage){
+            const rect = this.itemLineRect(1);
+            var bitmap = ImageManager.loadPicture(this._item.meta.fastTravelImage);
+            this._sprite.bitmap = bitmap;
+            this._sprite.opacity = 128;
+            this._sprite.x = rect.x;
+            this._sprite.y = rect.y;
+        }else{
+            this._sprite.bitmap = null;
+        }
+        const align = this.itemTextAlign();
+        this.resetTextColor();
+        this.changePaintOpacity(true);
+        var lineNumber = 0;
+        if(this._item.meta.fastTravelNote){
+            const notes = this._item.meta.fastTravelNote.split('\n');
+            for(var i = 0;i<notes.length;i++)
+            {
+                const rect = this.itemLineRect(lineNumber);
+                this.drawTextEx(notes[i], rect.x, rect.y, rect.width, align);    
+                lineNumber+=1;
+            }
+        }
+    }else{
+            this._sprite.bitmap = null;
     }
 };
 Window_FastTravelDetail.prototype.itemTextAlign = function() {
@@ -477,8 +553,8 @@ Window_FastTravelDetail.prototype.open = function() {
     Window_Selectable.prototype.open.call(this);
 };
 Window_FastTravelDetail.prototype.setItem = function(item){
-	this._item = item;
-	this.refresh();
+    this._item = item;
+    this.refresh();
 }
 
 //-----------------------------------------------------------------------------
@@ -502,18 +578,18 @@ Window_FastTravelConfirm.prototype.update = function() {
 };
 var AB_FSTRVLBYITEM_Window_FastTravelConfirm_drawAllItems = Window_FastTravelConfirm.prototype.drawAllItems;
 Window_FastTravelConfirm.prototype.drawAllItems = function() {
-	var rect = this.itemRect(-1);
-	this.drawTextEx(FASTTRAVEL_CONFIRM_MESSAGE, rect.x,rect.y,rect.width);	
-	AB_FSTRVLBYITEM_Window_FastTravelConfirm_drawAllItems.call(this);
+    var rect = this.itemRect(-1);
+    this.drawTextEx(FASTTRAVEL_CONFIRM_MESSAGE, rect.x,rect.y,rect.width);    
+    AB_FSTRVLBYITEM_Window_FastTravelConfirm_drawAllItems.call(this);
 };
 Window_FastTravelConfirm.prototype.makeCommandList = function() {
-	for(var i = 0 ; i< FASTTRAVEL_CONFIRM_YES_NO.length ; i++){
-		this.addCommand(FASTTRAVEL_CONFIRM_YES_NO[i], i);
-	}
+    for(var i = 0 ; i< FASTTRAVEL_CONFIRM_YES_NO.length ; i++){
+        this.addCommand(FASTTRAVEL_CONFIRM_YES_NO[i], i);
+    }
 };
 var AB_FSTRVLBYITEM_Window_FastTravelConfirm_itemRect = Window_FastTravelConfirm.prototype.itemRect;
 Window_FastTravelConfirm.prototype.itemRect = function(index) {
-	return AB_FSTRVLBYITEM_Window_FastTravelConfirm_itemRect.call(this,index+1);
+    return AB_FSTRVLBYITEM_Window_FastTravelConfirm_itemRect.call(this,index+1);
 };
 
 Window_FastTravelConfirm.prototype.needsCommand = function(name) {
@@ -523,5 +599,10 @@ Window_FastTravelConfirm.prototype.needsCommand = function(name) {
 Window_FastTravelConfirm.prototype.needsSelection = function() {
     return this.maxItems() >= 2;
 };
+
+Window_FastTravelConfirm.prototype.playOkSound = function() {
+    // ここでは音を鳴らさない 楽そうなのでonConfirmOkで鳴らす。
+};
+
 
 })();
