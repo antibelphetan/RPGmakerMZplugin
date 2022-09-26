@@ -2,7 +2,7 @@
 null,
 {"id":1,"expanded":false,"name":"MAP001","order":1,"parentId":0,"scrollX":882,"scrollY":771.4285714285713},
 {"id":2,"expanded":true,"name":"廃墟","order":2,"parentId":0,"scrollX":762.8571428571428,"scrollY":1052.5714285714284},
-{"id":3,"expanded":false,"name":"迷いの森","order":3,"parentId":0,"scrollX":1264.5,"scrollY":1511},
+{"id":3,"expanded":false,"name":"迷いの森","order":3,"parentId":0,"scrollX":1228.5,"scrollY":1511.25},
 {"id":4,"expanded":false,"name":"フィールド1","order":4,"parentId":0,"scrollX":5076,"scrollY":772},
 {"id":5,"expanded":false,"name":"砦","order":5,"parentId":0,"scrollX":882,"scrollY":1458.8571428571427},
 {"id":6,"expanded":false,"name":"塔","order":6,"parentId":0,"scrollX":816,"scrollY":896},

@@ -12,6 +12,7 @@
                   ファストトラベル後の向きを場所毎に指定できるように修正
                   ファストトラベル確認で「はい」選んだ時の効果音を、場所毎に設定できるよう修正
                   ファストトラベルコマンドのメニュー上の位置をパラメータである程度選べるように修正
+ 1.2.0 2022/09/25 ファストトラベルの並び順を指定可能に修正。
 ----------------------------------------------------------------------------
  [HP]   : http://kilisamenosekai.web.fc2.com/
  [Twitter]: https://twitter.com/mistyrain_on_tw/
@@ -84,12 +85,14 @@
  * >
  * <fastTravelLocation:2,24,49,4>
  * <fastTravelSe:Collapse1,50,150,-100>
+ * <fastTravelOrder:100>
  * ==============================================
  * fastTravelCategory 街とかダンジョンとか、ファストトラベルの分類です
  * fastTravelImage ファストトラベル詳細に表示する画像を指定 img\picturesの画像ファイル、拡張子なし
  * fastTravelNote ファストトラベル詳細に表示する文章を設定
  * fastTravelLocation ファストトラベルでの移動先を指定　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
  * fastTravelSe ファストトラベル確認で「はい」選んだ時に鳴る効果音を指定。名前,ボリューム,ピッチ,位相。指定しないと普通のOK音。
+ * fastTravelOrder ファストトラベルの表示順序を並び替えするキー。小さい番号がより先頭。
  * ==============================================
  */
 function Window_FastTravelList() {
@@ -460,6 +463,9 @@ Window_FastTravelList.prototype.isEnabled = function(item) {
 
 Window_FastTravelList.prototype.makeItemList = function() {
     this._data = $gameParty.allItems().filter(item => this.includes(item));
+    this._data.sort(function(a, b) {
+        return a.meta.fastTravelOrder - b.meta.fastTravelOrder;
+    });
 };
 
 Window_FastTravelList.prototype.selectLast = function() {
