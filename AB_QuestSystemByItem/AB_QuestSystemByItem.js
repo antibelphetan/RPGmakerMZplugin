@@ -13,6 +13,8 @@ AB_QuestSystemByItem.js
                   クエストワープ確認で「はい」選んだ時の効果音を、場所毎に設定できるよう修正
                   クエストコマンドのメニュー上の位置をパラメータである程度選べるように修正
                   クエストワープスイッチが機能していなかったので修正
+ 1.2.0 2022/09/25 クエストの並び順を指定可能に修正。
+                  クエスト段階別並び替えで並び替えた後、この並び順で並ぶ。
 ----------------------------------------------------------------------------
  [HP]   : http://kilisamenosekai.web.fc2.com/
  [Twitter]: https://twitter.com/mistyrain_on_tw/
@@ -68,7 +70,7 @@ AB_QuestSystemByItem.js
  *
  * @param QuestPhaseSort
  * @text クエスト段階別並び替え
- * @desc クエスト画面で表示するとき、段階で並び替える　どの段階を先頭に表示するかを数字で指定
+ * @desc クエスト画面で表示するとき、段階で並び替える　どの段階を先頭に表示するかを数字で指定。
  * @default ["2,"1","3","4","5"]
  * @type number[]
  *
@@ -135,13 +137,19 @@ AB_QuestSystemByItem.js
  * <questOccurrenceWarp:2,15,31,4>
  * <questReceiveWarp:2,24,49,6>
  * <questWarpSe:Collapse1,50,150,-100>
+ * <questOrder:1>
  * ==============================================
  * questCategory メインストーリーとかサブイベントとか、クエストの分類です
  * questImage クエスト詳細に表示する画像を指定 img\picturesの画像ファイル、拡張子なし
  * questNote クエスト詳細に表示する文章を設定
- * questOccurrenceWarp クエスト発生状態でのワープ先を指定　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
- * questReceiveWarp クエスト受注状態でのワープ先を指定　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
- * questWarpSe クエストワープ確認で「はい」選んだ時に鳴る効果音を指定。名前,ボリューム,ピッチ,位相。指定しないと普通のOK音。
+ * questOccurrenceWarp クエスト発生状態でのワープ先を指定
+ * 　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
+ * questReceiveWarp クエスト受注状態でのワープ先を指定
+ * 　マップID,X座標,Y座標,向き(2,4,6,8で指定,0で今の向きのまま)
+ * questWarpSe クエストワープ確認で「はい」選んだ時に鳴る効果音を指定。
+ * 　名前,ボリューム,ピッチ,位相。指定しないと普通のOK音。
+ * questOrder クエストの表示順序を並び替えするキー。小さい番号がより先頭。
+ * 　パラメータのクエスト段階別並び替えで並んだ後、この順序で並び替えされる。
  * ==============================================
  * @command Quest_None
  * @text クエスト無
@@ -831,12 +839,36 @@ Window_QuestList.prototype.isEnabled = function(item) {
 
 Window_QuestList.prototype.makeItemList = function() {
     this._data = [];
-    for(var i = 0; i < QUEST_PHASE_SORT.length ;i++)
-    {
-        var data = $gameParty.allItems().filter(item => this.includes(item)
-         && $gameParty.getQuestPhase(item.id) == Number(QUEST_PHASE_SORT[i].replace(/"/g, '')));
+    
+    if(QUEST_PHASE_SORT.length <= 1){
+        var orderData = [];
+        var data = $gameParty.allItems().filter(item => this.includes(item));
         for(var j = 0 ; j < data.length; j++){
-            this._data.push(data[j]);
+            orderData.push(data[j]);
+        }
+        orderData.sort(function(a, b) {
+            return a.meta.questOrder - b.meta.questOrder;
+        });
+        for(var j = 0 ; j < orderData.length; j++){
+            this._data.push(orderData[j]);
+        }
+    
+    }else{
+        
+        for(var i = 0; i < QUEST_PHASE_SORT.length ;i++)
+        {
+            var orderData = [];
+            var data = $gameParty.allItems().filter(item => this.includes(item)
+             && $gameParty.getQuestPhase(item.id) == Number(QUEST_PHASE_SORT[i].replace(/"/g, '')));
+            for(var j = 0 ; j < data.length; j++){
+                orderData.push(data[j]);
+            }
+            orderData.sort(function(a, b) {
+                return a.meta.questOrder - b.meta.questOrder;
+            });
+            for(var j = 0 ; j < orderData.length; j++){
+                this._data.push(orderData[j]);
+            }
         }
     }
     if (this.includes(null)) {
